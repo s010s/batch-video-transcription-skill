@@ -1,0 +1,7 @@
+interface:
+  display_name: "批量视频转写"
+  short_description: "批量提取视频音轨并生成中文时间码、Word 文稿及离线搜索页"
+  default_prompt: "使用 $batch-video-transcription 处理新一批视频，保留原件并生成时间码、Word 和离线搜索页面。"
+
+policy:
+  allow_implicit_invocation: false

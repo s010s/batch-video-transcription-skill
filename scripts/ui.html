@@ -1,0 +1,22 @@
+<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>视频转写助手</title>
+<style>body{font:16px system-ui;background:#f2f5f4;color:#203a35;margin:0}main{max-width:760px;margin:40px auto;padding:28px;background:white;border-radius:18px}h1{margin:0}small{color:#536d65}label{display:block;margin:18px 0 6px}input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:11px;border:1px solid #b4c6bf;border-radius:7px;font:inherit}button{padding:11px 18px;margin:16px 8px 0 0;border:0;border-radius:8px;background:#1d6857;color:white;font:inherit;cursor:pointer}button.secondary{background:#e3ece8;color:#214537}pre{white-space:pre-wrap;background:#f2f5f4;padding:18px;border-radius:9px}details{margin-top:20px}#message{padding:14px;background:#e8f3ee;border-radius:8px}strong{color:#144e40}</style>
+<main><h1>视频转写助手</h1><p>视频 → 带时间码的中文稿 → Word 与本地搜索页</p><small>AI可以先填好目录、备料和检查费用。你只需在这里输入Key，并确认本批预算。</small>
+<label for="root">素材文件夹</label><input id="root" placeholder="选择AI已确认的素材目录，或粘贴完整路径">
+<label for="work">本批输出文件夹</label><input id="work" placeholder="一个新的独立文件夹；不能放进素材目录">
+<button id="prepare">1. 准备音轨（本地免费）</button>
+<pre id="summary">等待读取状态…</pre>
+<label for="budget">本批费用上限（人民币）</label><input id="budget" type="number" min="0.01" step="0.01" placeholder="例如 1.00；不是默认授权">
+<label for="key">阿里 API Key（仅本次使用，不保存）</label><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="请在这里输入，不要发给AI">
+<label><input id="authorized" type="checkbox"> 我同意将本批音轨上传阿里云北京，按每秒 ¥0.00022 及以上费用上限进行识别。</label>
+<button id="run">2. 开始识别并生成文稿</button><button id="collect" class="secondary">只收取已有任务</button><button id="pause" class="secondary">暂停</button><button id="resume" class="secondary">安全解除暂停</button>
+<details><summary>高级设置（通常不用改）</summary><label for="origin">北京官方服务地址</label><input id="origin" value="https://dashscope.aliyuncs.com"><small>可填写控制台业务空间专属地址。默认兼容入口若不可用，不自动重投，请让AI协助核查。</small></details>
+<button id="open-output" class="secondary">打开文稿与搜索页</button><p id="message"></p><small>Key不写入文件、浏览器存储、日志或网址。关闭页面不等于暂停；请先点“暂停”。输出链接、文件位置和实际账单仍需核验。</small></main>
+<script>
+const token=location.hash.slice(1);let initialized=false; // Only the ephemeral local session token is in the fragment, never the API Key.
+const el=id=>document.getElementById(id);
+async function call(path,body){const options={headers:{'X-Local-Token':token}};if(body){options.method='POST';options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}const r=await fetch(path,options);const data=await r.json();if(!r.ok)throw Error(data.error||'请求未接受');return data;}
+async function refresh(){try{if(!token)throw Error('请重新双击启动器打开本机页面，现有任务不会重复提交。');const d=await call('/api/status');if(!initialized){el('root').value=d.root;el('work').value=d.work;el('origin').value=d.origin||d.default_origin;initialized=true;}el('message').textContent=d.message;el('summary').textContent=d.summary?`音轨时长：${(d.seconds||0).toFixed(2)} 秒\n预计费用：¥${d.estimated_yuan}（不假设免费额度）\n视频：${d.summary.total_videos}，音轨就绪：${d.summary.ready_audio}\n已取得任务ID：${d.summary.persisted_task_ids}，已下载：${d.summary.downloaded}\n失败：${d.summary.failed}，结果未知：${d.summary.uncertain}\n输出入口：${d.entry}`:'先准备音轨，不上传、不收费。';['prepare','run','collect','resume'].forEach(id=>el(id).disabled=d.busy);}catch(e){el('message').textContent=e.message;}}
+async function action(op){let body={root:el('root').value.trim(),work:el('work').value.trim()};if(op==='run'||op==='collect'){body.key=el('key').value;el('key').value='';body.origin=el('origin').value.trim();body.authorized=el('authorized').checked;body.budget=el('budget').value;}try{await call('/api/'+op,body);await refresh()}catch(e){el('message').textContent=e.message}finally{delete body.key;}}
+['root','work'].forEach(id=>el(id).oninput=()=>{el('authorized').checked=false;el('budget').value='';el('key').value='';});
+['prepare','run','collect','pause','resume','open-output'].forEach(id=>el(id).onclick=()=>action(id));refresh();setInterval(refresh,1500);
+</script></html>
